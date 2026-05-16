@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Corn Disease Classification</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+<div class="container">
+
+    <h1>Klasifikasi Penyakit Daun Jagung CNN</h1>
+
+    <form action="/predict" method="POST" enctype="multipart/form-data">
+
+        <label>Upload Gambar:</label>
+        <input type="file" name="images" multiple required>
+
+        <label>Pilih Metode:</label>
+
+        <select name="method">
+            <option value="serial">Serial</option>
+            <option value="parallel">Parallel</option>
+        </select>
+
+        <label>Batch Size:</label>
+        <input type="number" name="batch_size" value="4">
+
+        <button type="submit">
+            Proses
+        </button>
+
+    </form>
+
+</div>
+
+</body>
+</html>

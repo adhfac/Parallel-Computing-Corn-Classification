@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Hasil Prediksi</title>
+</head>
+<body>
+
+<h1>Hasil Klasifikasi</h1>
+
+<h3>Metode: {{ method }}</h3>
+
+<h3>Waktu Eksekusi: {{ execution_time }} detik</h3>
+
+<table border="1" cellpadding="10">
+
+    <tr>
+        <th>Gambar</th>
+        <th>Hasil Prediksi</th>
+    </tr>
+
+    {% for result in predictions %}
+
+    <tr>
+        <td>
+            <img src="{{ result.image }}" width="200">
+        </td>
+
+        <td>
+            {{ result.label }}
+        </td>
+    </tr>
+
+    {% endfor %}
+
+</table>
+
+<a href="/">Kembali</a>
+
+</body>
+</html>
