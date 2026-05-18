@@ -1,10 +1,7 @@
+from multiprocessing import Pool
 from tensorflow.keras.models import load_model
 from utils.preprocess import preprocess_image
-
 import numpy as np
-from multiprocessing.pool import ThreadPool
-
-model = load_model('model/corn_disease_model.h5')
 
 classes = [
     'Blight',
@@ -15,26 +12,49 @@ classes = [
 
 def predict_single(path):
 
+    model = load_model('model/corn_disease_model.h5')
+
     img = preprocess_image(path)
 
-    prediction = model.predict(img)
+    prediction = model.predict(img, verbose=0)
 
     class_index = np.argmax(prediction)
 
-    label = classes[class_index]
-
     return {
         'image': path,
-        'label': label
+        'label': classes[class_index]
     }
 
-def parallel_prediction(image_paths, batch_size=4):
+def parallel_prediction(image_paths):
 
-    pool = ThreadPool(processes=batch_size)
+    model = load_model(
+        'model/corn_disease_model.h5'
+    )
 
-    results = pool.map(predict_single, image_paths)
+    images=[]
 
-    pool.close()
-    pool.join()
+    for path in image_paths:
+
+        img = preprocess_image(path)[0]
+
+        images.append(img)
+
+    batch=np.array(images)
+
+    predictions=model.predict(
+        batch,
+        verbose=0
+    )
+
+    results=[]
+
+    for i,pred in enumerate(predictions):
+
+        class_index=np.argmax(pred)
+
+        results.append({
+            'image': image_paths[i],
+            'label': classes[class_index]
+        })
 
     return results

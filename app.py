@@ -20,7 +20,6 @@ def predict():
     files = request.files.getlist('images')
 
     method = request.form.get('method')
-    batch_size = int(request.form.get('batch_size'))
 
     image_paths = []
 
@@ -35,7 +34,7 @@ def predict():
         predictions = serial_prediction(image_paths)
 
     else:
-        predictions = parallel_prediction(image_paths, batch_size)
+        predictions = parallel_prediction(image_paths)
 
     end = time.time()
 
