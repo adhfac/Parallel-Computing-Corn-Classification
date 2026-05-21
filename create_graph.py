@@ -46,22 +46,37 @@ plt.close()
 # SPEEDUP
 # ======================
 
+import numpy as np
+
+x = np.arange(len(df))
+
 plt.figure(figsize=(8,5))
 
 plt.bar(
-    df['dataset'],
+    x,
     df['speedup']
 )
 
-plt.xlabel('Dataset Size')
+plt.xticks(
+    x,
+    df['dataset']
+)
 
-plt.ylabel('Speedup')
+plt.xlabel(
+    'Dataset Size'
+)
+
+plt.ylabel(
+    'Speedup'
+)
 
 plt.title(
     'Speedup Analysis'
 )
 
-plt.grid(axis='y')
+plt.grid(
+    axis='y'
+)
 
 plt.savefig(
     'speedup.png'
