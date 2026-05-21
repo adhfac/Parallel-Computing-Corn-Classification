@@ -1,51 +1,89 @@
-from flask import Flask, render_template, request
 import os
 import time
 
 from utils.serial_predict import serial_prediction
 from utils.parallel_predict import parallel_prediction
 
-app = Flask(__name__)
+AVAILABLE_DATASET = ['10','50','100','500']
 
-UPLOAD_FOLDER = 'static/uploads'
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+print("\n=== CORN DISEASE CLASSIFICATION ===")
 
-@app.route('/')
-def index():
-    return render_template('index.html')
+print("\nJumlah dataset tersedia:")
 
-@app.route('/predict', methods=['POST'])
-def predict():
+for item in AVAILABLE_DATASET:
+    print(f"- {item} gambar")
 
-    files = request.files.getlist('images')
+dataset_choice=input(
+    "\nPilih dataset (10/50/100/500): "
+)
 
-    method = request.form.get('method')
+if dataset_choice not in AVAILABLE_DATASET:
 
-    image_paths = []
+    print("Pilihan tidak valid.")
+    exit()
 
-    for file in files:
-        filepath = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
-        file.save(filepath)
+method=input(
+    "Metode (serial/parallel): "
+).lower()
+
+folder=f"data_test/{dataset_choice}"
+
+image_paths=[]
+
+for file in os.listdir(folder):
+
+    filepath=os.path.join(folder,file)
+
+    if file.lower().endswith(
+        ('.jpg','.jpeg','.png')
+    ):
         image_paths.append(filepath)
 
-    start = time.time()
+print(f"\nTotal gambar: {len(image_paths)}")
 
-    if method == 'serial':
-        predictions = serial_prediction(image_paths)
+start=time.time()
 
-    else:
-        predictions = parallel_prediction(image_paths)
+if method=='serial':
 
-    end = time.time()
-
-    execution_time = end - start
-
-    return render_template(
-        'result.html',
-        predictions=predictions,
-        execution_time=execution_time,
-        method=method
+    predictions=serial_prediction(
+        image_paths
     )
 
-if __name__ == '__main__':
-    app.run(debug=True)
+elif method=='parallel':
+
+    predictions=parallel_prediction(
+        image_paths
+    )
+
+else:
+
+    print("Metode tidak valid.")
+    exit()
+
+end=time.time()
+
+execution_time=end-start
+
+print("\n===== HASIL =====")
+
+for result in predictions:
+
+    print(
+        f"{os.path.basename(result['image'])}"
+        f" -> {result['label']}"
+    )
+
+print("\n===== PERFORMANCE =====")
+
+print(
+    f"Metode : {method}"
+)
+
+print(
+    f"Jumlah Data : {dataset_choice}"
+)
+
+print(
+    f"Waktu Komputasi : "
+    f"{execution_time:.4f} detik"
+)
