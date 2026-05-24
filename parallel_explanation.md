@@ -1,218 +1,128 @@
-## Implementasi Parallel Processing Menggunakan Batch Inference
-
-Pada penelitian ini, optimisasi komputasi dilakukan menggunakan metode **batch inference** pada proses klasifikasi penyakit daun jagung berbasis **Convolutional Neural Network (CNN)**.
-
-Berbeda dengan metode serial yang melakukan inferensi terhadap satu gambar pada satu waktu, batch inference memungkinkan beberapa gambar diproses secara bersamaan dalam satu kali eksekusi model.
-
-Implementasi metode ini direalisasikan melalui fungsi `parallel_prediction()`.
-
-### 1. Loading Model CNN
-
-Tahap pertama adalah memuat model CNN yang telah dilatih sebelumnya menggunakan TensorFlow/Keras.
-
-```python
-model = load_model(
-    'model/corn_disease_model.h5'
-)
-```
-
-Fungsi `load_model()` bertugas mengambil model hasil pelatihan yang tersimpan pada file `.h5`. Model ini berisi arsitektur jaringan, bobot (*weights*), serta parameter pembelajaran yang akan digunakan untuk proses inferensi.
-
-Setelah model berhasil dimuat, sistem siap melakukan klasifikasi citra.
+Berikut adalah revisi materi presentasi dan penjelasan materi tersebut dengan gaya bahasa yang lebih ilmiah, akademis, dan formal, serta telah disesuaikan agar siap digunakan untuk kebutuhan presentasi di hadapan dosen atau forum akademik.
 
 ---
 
-### 2. Preprocessing Seluruh Gambar
+## Analisis Paralelisme pada Proses Inferensi Convolutional Neural Network (CNN)
 
-Tahap berikutnya adalah melakukan preprocessing terhadap seluruh gambar input.
+### 1. Konseptual: Inferensi Serial versus Inferensi Batch (Paralel)
 
-```python
-images=[]
+Dalam konteks komputasi dan kecerdasan buatan, pemrosesan data citra dapat dibagi menjadi dua pendekatan utama:
 
-for path in image_paths:
-
-    img = preprocess_image(path)[0]
-
-    images.append(img)
-```
-
-Pada bagian ini, sistem melakukan iterasi terhadap seluruh path gambar yang tersedia pada dataset.
-
-Setiap gambar diproses menggunakan fungsi `preprocess_image()`.
-
-Tahapan preprocessing umumnya meliputi:
-
-* membaca file gambar,
-* resize gambar menjadi ukuran input CNN,
-* normalisasi nilai piksel,
-* konversi menjadi tensor numerik.
-
-Hasil preprocessing berupa tensor gambar kemudian disimpan ke dalam list `images`.
-
-Penggunaan indeks `[0]` dilakukan untuk menghilangkan dimensi batch tunggal yang sebelumnya ditambahkan saat preprocessing.
+* **Inferensi Serial (Satu per Satu):** Sistem mengeksekusi proses prediksi secara berurutan. Model harus menyelesaikan kalkulasi untuk satu citra sebelum berpindah ke citra berikutnya. Pendekatan ini tidak efisien untuk dataset berskala besar karena menghasilkan beban overhead yang tinggi pada setiap iterasi.
+* **Inferensi Batch (Paralelisme Tensor):** Beberapa data citra digabungkan ke dalam satu struktur matriks multidimensi (tensor) dan diumpankan ke model secara simultan. Model memanfaatkan arsitektur perangkat keras (seperti GPU atau CPU modern) untuk memproses seluruh data tersebut dalam satu operasi *forward pass*.
 
 ---
 
-### 3. Pembentukan Batch Tensor
+### 2. Analisis Struktur Kode Eksisting
 
-Setelah seluruh gambar selesai diproses, sistem menggabungkannya menjadi satu tensor batch.
+#### A. Pemuatan Pustaka (Library) dan Dependensi
 
 ```python
-batch=np.array(images)
+from multiprocessing import Pool
+from tensorflow.keras.models import load_model
+from utils.preprocess import preprocess_image
+import numpy as np
+
 ```
 
-Fungsi `np.array()` mengubah list gambar menjadi sebuah array multidimensi NumPy.
+| Modul / Fungsi | Peranan Akademis |
+| --- | --- |
+| `load_model` | Memuat arsitektur dan bobot (*weights*) model CNN yang telah dilatih ke dalam memori kerja. |
+| `preprocess_image` | Melakukan transformasi visual (seperti penyelarasan dimensi dan normalisasi nilai piksel). |
+| `numpy` | Mengelola manipulasi matriks dan operasi aljabar linier pada dataset. |
+| `Pool` | *Catatan Teknis:* Fungsi ini diimpor namun **tidak dieksekusi** dalam alur program. |
 
-Sebagai contoh:
+#### B. Representasi Definitif Kelas Target
 
-Jika terdapat **100 gambar** dengan ukuran input:
+```python
+classes = ['Blight', 'Common_Rust', 'Gray_Leaf_Spot', 'Healthy']
 
-```txt
-224 × 224 × 3
 ```
 
-maka bentuk tensor batch menjadi:
-
-```txt
-(100,224,224,3)
-```
-
-dimana:
-
-* **100** → jumlah gambar dalam dataset
-* **224** → tinggi citra
-* **224** → lebar citra
-* **3** → channel warna RGB
-
-Tensor batch ini menjadi input utama untuk proses inferensi paralel.
+Array ini berfungsi sebagai fungsi pemetaan (*mapping*) vektor kontraktual yang mengubah indeks probabilitas tertinggi (output numerik dari lapisan *Softmax*) menjadi label taksonomi penyakit tanaman yang bersesuaian.
 
 ---
 
-### 4. Batch Inference pada CNN
+### 3. Evaluasi Metodologi Fungsi `predict_single()` (Pendekatan Serial)
 
-Tahap inti dari implementasi paralel terdapat pada proses inferensi berikut:
+Fungsi `predict_single` mengimplementasikan paradigma eksekusi linier:
 
-```python
-predictions=model.predict(
-    batch,
-    verbose=0
-)
+1. **Instansiasi Model:** `load_model()` dipanggil pada setiap eksekusi, yang memicu pemborosan latensi karena model dimuat ulang berulang kali ke memori.
+2. **Pra-pemrosesan Citra:** Mengubah resolusi spasial menjadi $224 \times 224$ piksel, melakukan normalisasi skala ke rentang $[0, 1]$, dan mengonversinya menjadi format tensor tunggal.
+3. **Inferensi Matriks:** `model.predict(img)` mengeksekusi operasi kalkulasi bobot untuk satu sampel.
+4. **Reduksi Dimensi:** Fungsi `np.argmax()` mengidentifikasi indeks dengan nilai probabilitas tertinggi pada vektor keluaran untuk menentukan estimasi kelas penyakit.
+
 ```
+[Citra Masukan] ──> [Pra-pemrosesan] ──> [Inferensi CNN] ──> [Vektor Output] ──> [Klasifikasi Terpilih]
 
-Fungsi `model.predict()` menjalankan inferensi terhadap seluruh tensor batch secara bersamaan.
-
-Inilah yang disebut **batch inference**.
-
-Alih-alih menjalankan:
-
-```txt
-1 gambar → predict()
-1 gambar → predict()
-1 gambar → predict()
-```
-
-seperti pada metode serial, batch inference melakukan:
-
-```txt
-100 gambar → 1 kali predict()
-```
-
-TensorFlow kemudian memanfaatkan mekanisme komputasi paralel internal pada operasi CNN, seperti:
-
-* operasi matriks (*matrix multiplication*)
-* convolution operation
-* tensor computation
-* SIMD CPU optimization
-* GPU kernel parallelization (jika tersedia)
-
-Dengan demikian, beberapa gambar dapat diproses dalam satu siklus inferensi.
-
-Keuntungan utama pendekatan ini adalah mengurangi overhead pemanggilan model berulang serta meningkatkan utilisasi sumber daya komputasi.
-
----
-
-### 5. Pengambilan Hasil Prediksi
-
-Setelah inferensi selesai dilakukan, sistem mengambil kelas prediksi dari setiap output model.
-
-```python
-results=[]
-
-for i,pred in enumerate(predictions):
-
-    class_index=np.argmax(pred)
-```
-
-Output CNN berupa probabilitas untuk setiap kelas.
-
-Sebagai contoh:
-
-```txt
-[0.02, 0.91, 0.05, 0.02]
-```
-
-Nilai probabilitas terbesar dipilih menggunakan fungsi `np.argmax()`.
-
-Pada contoh di atas:
-
-```txt
-index = 1
-```
-
-yang merepresentasikan kelas:
-
-```txt
-Common_Rust
 ```
 
 ---
 
-### 6. Penyusunan Output
+### 4. Evaluasi Metodologi Fungsi `parallel_prediction()` (Pendekatan Batch)
 
-Tahap terakhir adalah menyusun hasil klasifikasi.
+Fungsi ini menerapkan prinsip *Data Parallelism* pada tingkat framework TensorFlow melalui mekanisme akumulasi *array*.
 
 ```python
-results.append({
-    'image': image_paths[i],
-    'label': classes[class_index]
-})
+predictions = model.predict(batch)
+
 ```
 
-Sistem menyimpan:
+* **Efisiensi Alokasi Memori:** Fungsi `load_model()` hanya dieksekusi satu kali di awal proses, meminimalkan redundansi I/O memori.
+* **Konstruksi Tensor Batch:** Melalui iterasi, citra individual dikumpulkan ke dalam list dan dikonversi menggunakan `np.array(images)` menjadi tensor berdimensi empat dengan format shape:
 
-* nama/path gambar
-* label hasil prediksi
+$$\text{Shape} = (N, H, W, C)$$
 
-ke dalam list hasil (`results`).
 
-Kemudian seluruh hasil dikembalikan melalui:
+> *Di mana $N$ mewakili jumlah sampel (batch size), $H$ dan $W$ adalah dimensi spasial ($224 \times 224$), dan $C$ adalah kanal warna ($3$ untuk RGB).*
 
-```python
-return results
+
+* **Optimasi Komputasi Forward Pass:** Berbeda dengan metode serial yang membutuhkan $N$ kali pemanggilan *forward pass*, metode ini mereduksi proses menjadi **1 kali forward pass** saja.
+
+```
+Metode Serial:
+Predict(img1) ──> Predict(img2) ──> Predict(img3) ──> Predict(img4)  [4 Operasi Terpisah]
+
+Metode Batch:
+Predict([img1, img2, img3, img4])                                    [1 Operasi Terpadu]
+
 ```
 
 ---
 
-## Fungsi dan Peran Batch Inference
+### 5. Alur Logika Pemrosesan Data (Flowchart)
 
-Pada penelitian ini, **batch inference berfungsi untuk meningkatkan efisiensi komputasi inferensi CNN** dengan memproses beberapa citra secara simultan dalam satu kali eksekusi model.
+```
+[Dataset Citra Masukan]
+          │
+          ▼
+   [Pra-pemrosesan] ───> (Penyelarasan Dimensi & Normalisasi)
+          │
+          ▼
+[Akumulasi Tensor Batch] ───> (Matriks Dimensi: N × 224 × 224 × 3)
+          │
+          ▼
+[Inferensi Kolektif] ───> (Eksekusi Paralel via TensorFlow)
+          │
+          ▼
+ [Reduksi Argmax] ───> (Ekstraksi Indeks Nilai Maksimum)
+          │
+          ▼
+[Output Vektor Label] ───> (Hasil Prediksi Terklasifikasi)
 
-Keuntungan penggunaan batch inference meliputi:
+```
 
-1. **Mengurangi execution time**
+---
 
-   Model tidak perlu dipanggil berulang kali untuk setiap gambar.
+### 6. Narasi Penjelasan Ilmiah untuk Sidang/Presentasi Akademik
 
-2. **Meningkatkan throughput**
+> "Berdasarkan analisis struktur kode, mekanisme paralelisasi yang diimplementasikan pada sistem ini tidak berbasis pada pemrograman multi-inti tingkat CPU (*CPU Multiprocessing*), melainkan memanfaatkan teknik **Batch Parallel Inference** yang dioptimalkan secara internal oleh framework TensorFlow.
+> Pada metode serial, latensi meningkat secara linier ($O(N)$) seiring bertambahnya volume data karena model melakukan proses *load* dan *forward pass* untuk setiap citra secara individual. Sebaliknya, metode *batch inference* mengonsolidasikan seluruh sampel ke dalam struktur tensor multidimensional sebelum dieksekusi dalam satu siklus *forward pass*.
+> Pendekatan ini secara signifikan mereduksi beban *overhead* komputasi dan memaksimalkan utilisasi arsitektur perangkat keras (seperti instruksi SIMD pada CPU atau paralelisasi masif pada GPU), sehingga menghasilkan operasi inferensi yang jauh lebih efisien."
 
-   Lebih banyak gambar dapat diproses setiap detik.
+---
 
-3. **Memanfaatkan optimisasi paralel TensorFlow**
+### 7. Kesimpulan Teknis Signifikan
 
-   Operasi tensor dapat dijalankan secara paralel pada CPU maupun GPU.
-
-4. **Mengurangi overhead inferensi**
-
-   Alokasi memori dan eksekusi kernel dilakukan sekali untuk satu batch besar.
-
-Berdasarkan hasil eksperimen penelitian, penggunaan batch inference menghasilkan penurunan waktu komputasi serta peningkatan throughput dibandingkan metode serial, terutama pada dataset berukuran besar.
+* **Klarifikasi Arsitektur:** Keberadaan fungsi `from multiprocessing import Pool` pada deklarasi awal tidak merepresentasikan model komputasi yang berjalan. Tidak ada proses *forking* atau pembuatan *subprocess* berbasis CPU dalam eksekusi kode ini.
+* **Terminologi Tepat:** Istilah ilmiah dan akademis yang paling representatif untuk menjelaskan fenomena percepatan komputasi pada kode ini adalah **Vectorized Batch Inference** atau **Tensor Parallelism via TensorFlow**, bukan *CPU Multiprocessing*.
