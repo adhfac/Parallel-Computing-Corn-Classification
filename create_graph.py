@@ -2,7 +2,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 
-df=pd.read_csv(
+df = pd.read_csv(
     'benchmark_result.csv'
 )
 
@@ -10,7 +10,9 @@ df=pd.read_csv(
 # EXECUTION TIME
 # ======================
 
-plt.figure(figsize=(8,5))
+plt.figure(
+    figsize=(8,5)
+)
 
 plt.plot(
     df['dataset'],
@@ -23,17 +25,30 @@ plt.plot(
     df['dataset'],
     df['parallel_time'],
     marker='o',
-    label='Parallel'
+    label='Parallel Batch'
 )
 
-plt.xlabel('Dataset Size')
-plt.ylabel('Seconds')
+plt.plot(
+    df['dataset'],
+    df['thread_time'],
+    marker='o',
+    label='ThreadPool'
+)
+
+plt.xlabel(
+    'Dataset Size'
+)
+
+plt.ylabel(
+    'Seconds'
+)
 
 plt.title(
     'Execution Time Comparison'
 )
 
 plt.legend()
+
 plt.grid()
 
 plt.savefig(
@@ -46,15 +61,26 @@ plt.close()
 # SPEEDUP
 # ======================
 
-import numpy as np
+x=np.arange(len(df))
 
-x = np.arange(len(df))
+width=0.35
 
-plt.figure(figsize=(8,5))
+plt.figure(
+    figsize=(9,5)
+)
 
 plt.bar(
-    x,
-    df['speedup']
+    x-width/2,
+    df['parallel_speedup'],
+    width,
+    label='Parallel Batch'
+)
+
+plt.bar(
+    x+width/2,
+    df['thread_speedup'],
+    width,
+    label='ThreadPool'
 )
 
 plt.xticks(
@@ -74,6 +100,8 @@ plt.title(
     'Speedup Analysis'
 )
 
+plt.legend()
+
 plt.grid(
     axis='y'
 )
@@ -90,22 +118,31 @@ plt.close()
 
 x=np.arange(len(df))
 
-width=0.35
+width=0.25
 
-plt.figure(figsize=(9,5))
+plt.figure(
+    figsize=(10,5)
+)
 
 plt.bar(
-    x-width/2,
+    x-width,
     df['serial_throughput(img/s)'],
     width,
     label='Serial'
 )
 
 plt.bar(
-    x+width/2,
+    x,
     df['parallel_throughput(img/s)'],
     width,
-    label='Parallel'
+    label='Parallel Batch'
+)
+
+plt.bar(
+    x+width,
+    df['thread_throughput(img/s)'],
+    width,
+    label='ThreadPool'
 )
 
 plt.xticks(
@@ -126,6 +163,10 @@ plt.title(
 )
 
 plt.legend()
+
+plt.grid(
+    axis='y'
+)
 
 plt.savefig(
     'throughput.png'
